@@ -45,6 +45,9 @@ int NetworkHealthChecker::getPing(const QString &key) const
 
 NetworkHealthChecker::Status NetworkHealthChecker::getStatus(const QString &key) const
 {
+    if (!m_results.contains(key)) {
+        return Status::Checking;
+    }
     return m_results.value(key).status;
 }
 
@@ -68,6 +71,61 @@ bool NetworkHealthChecker::hasTarget(const QString &key) const
     return m_targetHosts.contains(key);
 }
 
+static QString getFallbackHostForCountry(const QString &key)
+{
+    const QString code = key.trimmed().toUpper();
+    static const QHash<QString, QString> hosts = {
+        { QStringLiteral("NL"), QStringLiteral("www.google.nl") },
+        { QStringLiteral("DE"), QStringLiteral("www.google.de") },
+        { QStringLiteral("SE"), QStringLiteral("www.google.se") },
+        { QStringLiteral("FI"), QStringLiteral("www.google.fi") },
+        { QStringLiteral("US"), QStringLiteral("www.google.com") },
+        { QStringLiteral("GB"), QStringLiteral("www.google.co.uk") },
+        { QStringLiteral("UK"), QStringLiteral("www.google.co.uk") },
+        { QStringLiteral("FR"), QStringLiteral("www.google.fr") },
+        { QStringLiteral("PL"), QStringLiteral("www.google.pl") },
+        { QStringLiteral("TR"), QStringLiteral("www.google.com.tr") },
+        { QStringLiteral("KZ"), QStringLiteral("www.google.kz") },
+        { QStringLiteral("CH"), QStringLiteral("www.google.ch") },
+        { QStringLiteral("ES"), QStringLiteral("www.google.es") },
+        { QStringLiteral("IT"), QStringLiteral("www.google.it") },
+        { QStringLiteral("CA"), QStringLiteral("www.google.ca") },
+        { QStringLiteral("SG"), QStringLiteral("www.google.com.sg") },
+        { QStringLiteral("JP"), QStringLiteral("www.google.co.jp") },
+        { QStringLiteral("UA"), QStringLiteral("www.google.com.ua") },
+        { QStringLiteral("AT"), QStringLiteral("www.google.at") },
+        { QStringLiteral("CZ"), QStringLiteral("www.google.cz") },
+        { QStringLiteral("RO"), QStringLiteral("www.google.ro") },
+        { QStringLiteral("EE"), QStringLiteral("www.google.ee") },
+        { QStringLiteral("LV"), QStringLiteral("www.google.lv") },
+        { QStringLiteral("LT"), QStringLiteral("www.google.lt") },
+        { QStringLiteral("MD"), QStringLiteral("www.google.md") },
+        { QStringLiteral("GE"), QStringLiteral("www.google.ge") },
+        { QStringLiteral("AM"), QStringLiteral("www.google.am") },
+        { QStringLiteral("AZ"), QStringLiteral("www.google.az") },
+        { QStringLiteral("AE"), QStringLiteral("www.google.ae") },
+        { QStringLiteral("IL"), QStringLiteral("www.google.co.il") },
+        { QStringLiteral("BR"), QStringLiteral("www.google.com.br") },
+        { QStringLiteral("AU"), QStringLiteral("www.google.com.au") },
+        { QStringLiteral("IN"), QStringLiteral("www.google.co.in") },
+        { QStringLiteral("NO"), QStringLiteral("www.google.no") },
+        { QStringLiteral("DK"), QStringLiteral("www.google.dk") },
+        { QStringLiteral("BE"), QStringLiteral("www.google.be") },
+        { QStringLiteral("IE"), QStringLiteral("www.google.ie") },
+        { QStringLiteral("PT"), QStringLiteral("www.google.pt") },
+        { QStringLiteral("BG"), QStringLiteral("www.google.bg") },
+        { QStringLiteral("GR"), QStringLiteral("www.google.gr") },
+        { QStringLiteral("HU"), QStringLiteral("www.google.hu") },
+        { QStringLiteral("SK"), QStringLiteral("www.google.sk") },
+        { QStringLiteral("IS"), QStringLiteral("www.google.is") },
+        { QStringLiteral("RS"), QStringLiteral("www.google.rs") }
+    };
+    if (hosts.contains(code)) {
+        return hosts.value(code);
+    }
+    return QStringLiteral("www.google.com");
+}
+
 void NetworkHealthChecker::checkPing(const QString &key)
 {
     if (key.isEmpty()) {
@@ -82,8 +140,8 @@ void NetworkHealthChecker::checkPing(const QString &key)
         host = pair.first;
         port = pair.second;
     } else {
-        // Fallback target: try regional or gateway node
-        host = QString("%1.gw.amnezia.org").arg(key.toLower());
+        host = getFallbackHostForCountry(key);
+        port = 443;
     }
 
     startProbe(key, host, port);
@@ -191,13 +249,29 @@ void NetworkHealthChecker::onSocketConnected()
 
 void NetworkHealthChecker::onSocketError(QAbstractSocket::SocketError socketError)
 {
-    Q_UNUSED(socketError)
     QTcpSocket *socket = qobject_cast<QTcpSocket*>(sender());
     if (!socket || !m_activeProbes.contains(socket)) {
         return;
     }
 
     ProbeTask *task = m_activeProbes.take(socket);
+
+    if (socketError == QAbstractSocket::ConnectionRefusedError) {
+        // TCP RST received: the host is active and responded!
+        int elapsed = static_cast<int>(task->stopwatch.elapsed());
+        HealthInfo info;
+        info.pingMs = (elapsed > 0) ? elapsed : 1;
+        info.status = Status::Online;
+        info.lastCheckedMs = QDateTime::currentMSecsSinceEpoch();
+        m_results[task->key] = info;
+        saveCache();
+        emit pingUpdated(task->key, info.pingMs, Status::Online);
+        cleanupProbe(task);
+        if (m_activeProbes.isEmpty()) {
+            emit checkAllFinished();
+        }
+        return;
+    }
 
     HealthInfo info;
     info.pingMs = -1;

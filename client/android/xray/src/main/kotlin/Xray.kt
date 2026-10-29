@@ -121,8 +121,17 @@ class Xray : Protocol() {
                 if (it.isNotBlank()) setMtu(it.toInt())
             }
 
-            val inbounds = xrayJsonConfig.getJSONArray("inbounds")
-            val socksIdx = findSocksInboundIndex(inbounds)
+            var inbounds = xrayJsonConfig.optJSONArray("inbounds")
+            if (inbounds == null) {
+                ensureInboundAuth(xrayJsonConfig)
+                inbounds = xrayJsonConfig.optJSONArray("inbounds")
+            }
+            var socksIdx = if (inbounds != null) findSocksInboundIndex(inbounds) else -1
+            if (socksIdx < 0) {
+                ensureInboundAuth(xrayJsonConfig)
+                inbounds = xrayJsonConfig.getJSONArray("inbounds")
+                socksIdx = findSocksInboundIndex(inbounds)
+            }
             if (socksIdx < 0) {
                 throw BadConfigException("socks inbound not found")
             }
@@ -165,7 +174,11 @@ class Xray : Protocol() {
             Log.i(TAG, "xray ${LibXray.xrayVersion()}")
             val assetsPath = context.getDir("assets", Context.MODE_PRIVATE).absolutePath
             LibXray.initXray(assetsPath)
-            val geoDir = File(assetsPath, "geo").absolutePath
+            val geoDirFile = File(assetsPath, "geo")
+            if (!geoDirFile.exists()) {
+                geoDirFile.mkdirs()
+            }
+            val geoDir = geoDirFile.absolutePath
             val configPath = File(context.cacheDir, "config.json")
             Log.v(TAG, "xray.location.asset: $geoDir")
             Log.v(TAG, "config: $configPath")
@@ -214,9 +227,23 @@ class Xray : Protocol() {
     // Ensures SOCKS5 auth is present on the socks inbound settings.
     // Re-uses existing credentials if already configured; otherwise generates random ones.
     private fun ensureInboundAuth(xrayConfig: JSONObject) {
-        val inbounds = xrayConfig.optJSONArray("inbounds") ?: return
-        val socksIdx = findSocksInboundIndex(inbounds)
-        if (socksIdx < 0) return
+        var inbounds = xrayConfig.optJSONArray("inbounds")
+        if (inbounds == null) {
+            inbounds = JSONArray()
+            xrayConfig.put("inbounds", inbounds)
+        }
+        var socksIdx = findSocksInboundIndex(inbounds)
+        if (socksIdx < 0) {
+            val newInbound = JSONObject().apply {
+                put("protocol", "socks")
+                put("listen", "127.0.0.1")
+                put("settings", JSONObject().apply {
+                    put("udp", true)
+                })
+            }
+            inbounds.put(newInbound)
+            socksIdx = inbounds.length() - 1
+        }
 
         val inbound = inbounds.getJSONObject(socksIdx)
         inbound.put("port", acquireFreeLocalPort())

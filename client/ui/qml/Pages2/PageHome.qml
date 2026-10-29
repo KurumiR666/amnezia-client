@@ -517,8 +517,9 @@ PageType {
 
                         PageController.showBusyIndicator(true)
                         ServersUiController.setProcessedServerId(ServersUiController.defaultServerId)
+                        var currentCountry = ApiCountryModel.currentCountryCode
                         SubscriptionUiController.setCurrentProtocol(ServersUiController.defaultServerId, modelData)
-                        if (!SubscriptionUiController.updateServiceFromGateway(ServersUiController.defaultServerId, "", "", true)) {
+                        if (!SubscriptionUiController.updateServiceFromGateway(ServersUiController.defaultServerId, currentCountry, "", true)) {
                             SubscriptionUiController.setCurrentProtocol(ServersUiController.defaultServerId, root.apiCurrentProtocol)
                         }
                         root.updateApiProtocolState()

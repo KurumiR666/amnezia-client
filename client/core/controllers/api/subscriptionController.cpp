@@ -169,6 +169,31 @@ ErrorCode SubscriptionController::extractServerConfigJsonFromResponse(const QByt
         containers.replace(0, container);
         newServerConfig[configKey::containers] = containers;
         configStr = QString(QJsonDocument(newServerConfig).toJson());
+    } else if (protocol == configKey::vless) {
+        auto newServerConfig = QJsonDocument::fromJson(configStr.toUtf8()).object();
+        auto containers = newServerConfig.value(configKey::containers).toArray();
+        if (!containers.isEmpty()) {
+            auto container = containers.at(0).toObject();
+            const QString containerName = QStringLiteral("xray");
+            auto serverProtocolConfig = container.value(containerName).toObject();
+            QString lastConfigStr = serverProtocolConfig.value(configKey::lastConfig).toString();
+            if (!lastConfigStr.isEmpty()) {
+                QJsonObject lastConfigObj = QJsonDocument::fromJson(lastConfigStr.toUtf8()).object();
+                if (!lastConfigObj.contains(protocols::xray::inbounds) || lastConfigObj.value(protocols::xray::inbounds).toArray().isEmpty()) {
+                    QJsonObject inbound;
+                    inbound[protocols::xray::listen] = QString::fromLatin1(protocols::xray::defaultLocalListenAddr);
+                    inbound[protocols::xray::port] = QString::fromLatin1(protocols::xray::defaultLocalProxyPort).toInt();
+                    inbound[protocols::xray::protocol] = QString::fromLatin1(protocols::xray::protocolSocks);
+                    inbound[protocols::xray::settings] = QJsonObject { { protocols::xray::udp, true } };
+                    lastConfigObj[protocols::xray::inbounds] = QJsonArray { inbound };
+                    serverProtocolConfig[configKey::lastConfig] = QString::fromUtf8(QJsonDocument(lastConfigObj).toJson(QJsonDocument::Compact));
+                    container[containerName] = serverProtocolConfig;
+                    containers.replace(0, container);
+                    newServerConfig[configKey::containers] = containers;
+                    configStr = QString::fromUtf8(QJsonDocument(newServerConfig).toJson(QJsonDocument::Compact));
+                }
+            }
+        }
     }
 
     serverConfigJson = QJsonDocument::fromJson(configStr.toUtf8()).object();
@@ -317,12 +342,13 @@ ErrorCode SubscriptionController::updateServiceFromGateway(const QString &server
     }
     const bool isTestPurchase = apiV2->apiConfig.isTestPurchase;
     QString serviceProtocol = apiV2->serviceProtocol();
+    const QString targetCountryCode = newCountryCode.isEmpty() ? apiV2->apiConfig.serverCountryCode : newCountryCode;
 
-    if (!newCountryCode.isEmpty()) {
+    if (!targetCountryCode.isEmpty()) {
         const auto availableCountries = apiV2->apiConfig.availableCountries;
         for (const auto &country : availableCountries) {
             const auto countryObject = country.toObject();
-            if (countryObject.value(apiDefs::key::serverCountryCode).toString() != newCountryCode) {
+            if (countryObject.value(apiDefs::key::serverCountryCode).toString() != targetCountryCode) {
                 continue;
             }
 
@@ -338,7 +364,7 @@ ErrorCode SubscriptionController::updateServiceFromGateway(const QString &server
 
     QJsonObject apiPayload = GatewayPayloadBuilder(m_appSettingsRepository)
                                      .addField(apiDefs::key::userCountryCode, apiV2->apiConfig.userCountryCode)
-                                     .addField(apiDefs::key::serverCountryCode, newCountryCode)
+                                     .addField(apiDefs::key::serverCountryCode, targetCountryCode)
                                      .addField(apiDefs::key::serviceType, apiV2->serviceType())
                                      .addField(apiDefs::key::serviceProtocol, serviceProtocol)
                                      .addField(apiDefs::key::publicKey, publicKeyForProtocol(serviceProtocol, protocolData))

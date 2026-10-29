@@ -1460,6 +1460,15 @@ XrayProtocolConfig XrayProtocolConfig::fromJson(const QJsonObject &json)
         if (doc.isObject()) {
             QJsonObject parsed = doc.object();
             if (parsed.contains(protocols::xray::outbounds) && !parsed.contains(configKey::config)) {
+                if (!parsed.contains(protocols::xray::inbounds) || parsed.value(protocols::xray::inbounds).toArray().isEmpty()) {
+                    QJsonObject inbound;
+                    inbound[protocols::xray::listen] = QString::fromLatin1(protocols::xray::defaultLocalListenAddr);
+                    inbound[protocols::xray::port] = QString::fromLatin1(protocols::xray::defaultLocalProxyPort).toInt();
+                    inbound[protocols::xray::protocol] = QString::fromLatin1(protocols::xray::protocolSocks);
+                    inbound[protocols::xray::settings] = QJsonObject { { protocols::xray::udp, true } };
+                    parsed[protocols::xray::inbounds] = QJsonArray { inbound };
+                    lastConfigStr = QString::fromUtf8(QJsonDocument(parsed).toJson(QJsonDocument::Compact));
+                }
                 XrayClientConfig clientCfg;
                 clientCfg.nativeConfig = lastConfigStr;
                 clientCfg.localPort = XrayClientConfig::localPortFromNativeJson(parsed);
