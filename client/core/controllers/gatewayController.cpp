@@ -113,13 +113,18 @@ GatewayController::GatewayController(const QString &gatewayEndpoint, const bool 
     } else {
         primaryEndpoints = splitEndpoints(PROD_S3_ENDPOINT);
         if (primaryEndpoints.isEmpty()) {
-            primaryEndpoints = { QStringLiteral("https://s3.eu-north-1.amazonaws.com/amnezia/") };
+            primaryEndpoints = {
+                QStringLiteral("https://s3.eu-north-1.amazonaws.com/amnezia/"),
+                QStringLiteral("https://storage.googleapis.com/lambda-list/"),
+                QStringLiteral("https://amnzstrg01.blob.core.windows.net/lambda-list/"),
+                QStringLiteral("https://objectstorage.eu-zurich-1.oraclecloud.com/n/zrhfyaq6qxvh/b/lambda-list/o/")
+            };
         }
         fallbackEndpoints = splitEndpoints(FALLBACK_S3_ENDPOINT);
         if (fallbackEndpoints.isEmpty()) {
             fallbackEndpoints = {
-                QStringLiteral("https://storage.googleapis.com/lambda-list/"),
                 QStringLiteral("https://storage.mwsapis.ru/lambda-list/"),
+                QStringLiteral("https://46.8.209.252/lambda-list/"),
                 QStringLiteral("https://s3.cloudruserapi.net/lambda-list/")
             };
         }
@@ -141,6 +146,8 @@ GatewayController::GatewayController(const QString &gatewayEndpoint, const bool 
         qCritical() << "GatewayController: failed to create gateway client (missing key or endpoint?)";
         return;
     }
+    qInfo() << "GatewayController: client created successfully with endpoints:"
+            << "primary=" << primaryEndpoints << "fallback=" << fallbackEndpoints;
 
     if (m_appSettingsRepository != nullptr) {
         const QByteArray state = m_appSettingsRepository->readGatewayProxyUrls(agwStateCacheKey);
@@ -209,10 +216,20 @@ QPair<amnezia::ErrorCode, QByteArray> GatewayController::executePost(const QStri
     const int code = result.code;
     agw_result_free(&result);
 
+    qInfo() << "GatewayController::executePost: path=" << path << "code=" << code << "bodyLen=" << responseBody.size();
+    if (code != AGW_OK || !trace.isEmpty()) {
+        qWarning() << "GatewayController::executePost: trace=" << trace;
+    }
+
     logAgwTrace(path, code, trace);
     persistState();
 
-    return qMakePair(mapResultCode(code, responseBody), responseBody);
+    const amnezia::ErrorCode err = mapResultCode(code, responseBody);
+    if (err != amnezia::ErrorCode::NoError) {
+        qWarning() << "GatewayController::executePost: mapped error=" << static_cast<int>(err) << "responseBody=" << responseBody;
+    }
+
+    return qMakePair(err, responseBody);
 }
 
 amnezia::ErrorCode GatewayController::mapResultCode(const int code, const QByteArray &responseBody)

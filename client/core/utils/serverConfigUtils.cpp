@@ -72,10 +72,10 @@ ConfigType configTypeFromJson(const QJsonObject &serverConfigObject)
 
         const QString apiEndpointValue = serverConfigObject.value(apiDefs::key::apiEndpoint).toString();
 
-        if (apiEndpointValue.contains(premiumV1Endpoint)) {
+        if (!premiumV1Endpoint.isEmpty() && apiEndpointValue.contains(premiumV1Endpoint)) {
             return ConfigType::AmneziaPremiumV1;
         }
-        if (apiEndpointValue.contains(freeV2Endpoint)) {
+        if (!freeV2Endpoint.isEmpty() && apiEndpointValue.contains(freeV2Endpoint)) {
             return ConfigType::AmneziaFreeV2;
         }
     }
