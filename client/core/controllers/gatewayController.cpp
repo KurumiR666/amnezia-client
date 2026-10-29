@@ -130,23 +130,20 @@ GatewayController::GatewayController(const QString &gatewayEndpoint, const bool 
     if (isDevEnvironment) {
         primaryEndpoints = splitEndpoints(DEV_S3_ENDPOINT);
     } else {
-        primaryEndpoints = splitEndpoints(PROD_S3_ENDPOINT);
-        if (primaryEndpoints.isEmpty()) {
-            primaryEndpoints = {
-                QStringLiteral("https://s3.eu-north-1.amazonaws.com/amnezia/"),
-                QStringLiteral("https://storage.googleapis.com/lambda-list/"),
-                QStringLiteral("https://amnzstrg01.blob.core.windows.net/lambda-list/"),
-                QStringLiteral("https://objectstorage.eu-zurich-1.oraclecloud.com/n/zrhfyaq6qxvh/b/lambda-list/o/")
-            };
-        }
-        fallbackEndpoints = splitEndpoints(FALLBACK_S3_ENDPOINT);
-        if (fallbackEndpoints.isEmpty()) {
-            fallbackEndpoints = {
-                QStringLiteral("https://storage.mwsapis.ru/lambda-list/"),
-                QStringLiteral("https://46.8.209.252/lambda-list/"),
-                QStringLiteral("https://s3.cloudruserapi.net/lambda-list/")
-            };
-        }
+        primaryEndpoints = {
+            QStringLiteral("https://storage.googleapis.com/lambda-list/"),
+            QStringLiteral("https://storage.mwsapis.ru/lambda-list/"),
+            QStringLiteral("https://46.8.209.252/lambda-list/"),
+            QStringLiteral("https://amnzstrg01.blob.core.windows.net/lambda-list/"),
+            QStringLiteral("https://s3.cloudruserapi.net/lambda-list/"),
+            QStringLiteral("https://objectstorage.eu-zurich-1.oraclecloud.com/n/zrhfyaq6qxvh/b/lambda-list/o/"),
+            QStringLiteral("https://s3.eu-north-1.amazonaws.com/amnezia/")
+        };
+        fallbackEndpoints = {
+            QStringLiteral("https://storage.mwsapis.ru/lambda-list/"),
+            QStringLiteral("https://46.8.209.252/lambda-list/"),
+            QStringLiteral("https://s3.cloudruserapi.net/lambda-list/")
+        };
     }
 
     QJsonObject config;

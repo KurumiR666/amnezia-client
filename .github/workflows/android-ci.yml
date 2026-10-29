@@ -83,8 +83,6 @@ jobs:
           QT_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android.keystore
           QT_ANDROID_KEYSTORE_ALIAS: 'amnezia-debug'
           QT_ANDROID_KEYSTORE_STORE_PASS: 'amnezia123'
-          PROD_S3_ENDPOINT: 'https://s3.eu-north-1.amazonaws.com/amnezia/, https://storage.googleapis.com/lambda-list/, https://amnzstrg01.blob.core.windows.net/lambda-list/, https://objectstorage.eu-zurich-1.oraclecloud.com/n/zrhfyaq6qxvh/b/lambda-list/o/'
-          FALLBACK_S3_ENDPOINT: 'https://storage.mwsapis.ru/lambda-list/, https://46.8.209.252/lambda-list/, https://s3.cloudruserapi.net/lambda-list/'
         shell: bash
         run: |
           chmod +x deploy/build.sh
