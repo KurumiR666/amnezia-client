@@ -17,6 +17,7 @@
 #include "core/utils/constants/apiKeys.h"
 #include "core/utils/constants/apiConstants.h"
 #include "core/utils/api/apiUtils.h"
+#include "core/utils/networkHealthChecker.h"
 #include "core/utils/api/gatewayPayloadBuilder.h"
 #include "core/controllers/gatewayController.h"
 #include "core/utils/protocolEnum.h"
@@ -436,6 +437,11 @@ ErrorCode SubscriptionController::applyUpdatedServiceConfig(const QString &serve
 
     m_serversRepository->editServer(serverId, newApiV2Config.toJson(),
                                    serverConfigUtils::configTypeFromJson(newApiV2Config.toJson()));
+
+    if (!newApiV2Config.hostName.isEmpty() && !newApiV2Config.apiConfig.serverCountryCode.isEmpty()) {
+        NetworkHealthChecker::instance()->setTarget(newApiV2Config.apiConfig.serverCountryCode, newApiV2Config.hostName);
+    }
+
     return ErrorCode::NoError;
 }
 

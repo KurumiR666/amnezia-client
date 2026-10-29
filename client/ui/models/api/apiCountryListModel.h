@@ -30,7 +30,9 @@ public:
         IsCurrentRole,
         IsIssuedRole,
         IsWorkerExpiredRole,
-        IsFavoriteRole
+        IsFavoriteRole,
+        PingMsRole,
+        PingStatusRole
     };
 
     enum SortMode {
@@ -104,6 +106,9 @@ public slots:
     Q_INVOKABLE int rowForCountryCode(const QString &countryCode) const;
     Q_INVOKABLE bool isSectionHeaderRow(int row) const;
     Q_INVOKABLE int rowForSectionHeader(const QString &sectionKey) const;
+
+    Q_INVOKABLE void checkPing(const QString &countryCode);
+    Q_INVOKABLE void checkAllPings();
 
 signals:
     void searchTextChanged();

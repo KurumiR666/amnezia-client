@@ -14,6 +14,8 @@ ItemDelegate {
     property string subtitle
     property int maximumLineCount: 2
     property bool showSeparator: true
+    property int pingMs: -1
+    property int pingStatus: 0
 
     default property alias trailingContent: trailingRow.data
 
@@ -112,6 +114,60 @@ ItemDelegate {
             title: root.text
             subtitle: root.subtitle
             maximumLineCount: root.maximumLineCount
+        }
+
+        RowLayout {
+            id: pingContainer
+            Layout.alignment: Qt.AlignVCenter
+            Layout.rightMargin: 4
+            spacing: 5
+            visible: root.pingStatus > 0
+
+            Rectangle {
+                width: 7
+                height: 7
+                radius: 4
+                Layout.alignment: Qt.AlignVCenter
+
+                color: {
+                    if (root.pingStatus === 2) {
+                        if (root.pingMs < 100) return "#28C840"
+                        if (root.pingMs < 200) return "#F2C94C"
+                        return "#F2994A"
+                    }
+                    if (root.pingStatus === 3) return "#EB5757"
+                    if (root.pingStatus === 1) return "#00D1FF"
+                    return "#666666"
+                }
+
+                SequentialAnimation on opacity {
+                    running: root.pingStatus === 1
+                    loops: Animation.Infinite
+                    PropertyAnimation { to: 0.3; duration: 400 }
+                    PropertyAnimation { to: 1.0; duration: 400 }
+                }
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignVCenter
+                text: {
+                    if (root.pingStatus === 1) return "..."
+                    if (root.pingStatus === 2) return root.pingMs + " ms"
+                    if (root.pingStatus === 3) return qsTr("Offline")
+                    return ""
+                }
+                font.pixelSize: 12
+                font.weight: Font.DemiBold
+                color: {
+                    if (root.pingStatus === 2) {
+                        if (root.pingMs < 100) return "#28C840"
+                        if (root.pingMs < 200) return "#F2C94C"
+                        return "#F2994A"
+                    }
+                    if (root.pingStatus === 3) return "#EB5757"
+                    return AmneziaStyle.color.textSecondary
+                }
+            }
         }
 
         FavoriteButton {

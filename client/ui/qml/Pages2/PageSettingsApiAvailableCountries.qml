@@ -76,6 +76,7 @@ PageType {
         root.updateSubscriptionState()
 
         ApiCountryListModel.applyDefaultState(true)
+        ApiCountryListModel.checkAllPings()
     }
 
     Connections {
@@ -195,6 +196,8 @@ PageType {
             required property string sourceCountryName
             required property string countryCode
             required property string countryImageCode
+            required property int pingMs
+            required property int pingStatus
 
             width: menuContent.width
 
@@ -225,6 +228,8 @@ PageType {
                 countryFlagCode: rowItem.countryImageCode
                 highlighted: rowItem.isCurrent
                 favorite: rowItem.isFavorite
+                pingMs: rowItem.pingMs
+                pingStatus: rowItem.pingStatus
 
                 onClicked: root.activateCountry(rowItem.countryCode, rowItem.sourceCountryName)
                 onFavoriteToggled: ApiCountryListModel.toggleFavorite(rowItem.countryCode)
@@ -271,6 +276,11 @@ PageType {
         }
 
         navigationButtons: [
+            IconButtonType {
+                id: refreshPingButton
+                icon.source: "qrc:/images/controls/refresh-cw.svg"
+                onClicked: ApiCountryListModel.checkAllPings()
+            },
             IconButtonType {
                 id: settingsButton
 

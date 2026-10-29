@@ -10,6 +10,7 @@
 #include "core/controllers/coreController.h"
 #include "core/repositories/secureServersRepository.h"
 #include "core/utils/serverConfigUtils.h"
+#include "core/utils/networkHealthChecker.h"
 #include "core/repositories/secureAppSettingsRepository.h"
 #include "vpnConnection.h"
 #include "ui/controllers/qml/focusController.h"
@@ -276,6 +277,21 @@ void CoreSignalHandlers::initApiCountryModelUpdateHandler()
         m_coreController->m_apiCountryModel->updateModel(apiV2->apiConfig.availableCountries,
                                                            apiV2->apiConfig.serverCountryCode,
                                                            apiV2->apiConfig.userCountryCode);
+
+        if (!apiV2->hostName.isEmpty() && !apiV2->apiConfig.serverCountryCode.isEmpty()) {
+            NetworkHealthChecker::instance()->setTarget(apiV2->apiConfig.serverCountryCode, apiV2->hostName);
+        }
+        for (const auto &cVal : apiV2->apiConfig.availableCountries) {
+            const auto cObj = cVal.toObject();
+            const QString code = cObj.value(apiDefs::key::serverCountryCode).toString();
+            QString host = cObj.value(QStringLiteral("host")).toString();
+            if (host.isEmpty()) {
+                host = cObj.value(QStringLiteral("ip")).toString();
+            }
+            if (!code.isEmpty() && !host.isEmpty()) {
+                NetworkHealthChecker::instance()->setTarget(code, host);
+            }
+        }
     });
 }
 

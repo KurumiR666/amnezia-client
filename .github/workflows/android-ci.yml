@@ -1,0 +1,96 @@
+name: 'Build Android APK'
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - '**'
+
+env:
+  QT_MIRROR: https://mirrors.ocf.berkeley.edu/qt/
+  QT_VERSION: '6.10.3'
+  QT_MODULES: 'qtremoteobjects qt5compat qtimageformats qtshadertools'
+  ANDROID_PLATFORM: android-30
+  NDK_VERSION: 27.0.11718014
+  APP_ANDROID_MIN_SDK: 30
+
+jobs:
+  build-apk:
+    name: 'Build Android APK (arm64-v8a)'
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: 'Checkout repository'
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
+      - name: 'Setup Java 17'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 'Setup Android SDK & NDK'
+        uses: android-actions/setup-android@v4
+        with:
+          packages: "platforms;${{ env.ANDROID_PLATFORM }} ndk;${{ env.NDK_VERSION }}"
+
+      - name: 'Setup Python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 'Install Conan and build tools'
+        run: |
+          pip install "conan==2.28.0" ninja
+
+      - name: 'Install desktop Qt'
+        uses: jurplel/install-qt-action@v4.3.1
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: 'linux'
+          target: 'desktop'
+          arch: 'linux_gcc_64'
+          modules: ${{ env.QT_MODULES }}
+          dir: ${{ runner.temp }}
+          py7zrversion: '==0.22.*'
+          extra: '--base ${{ env.QT_MIRROR }}'
+
+      - name: 'Install android_arm64_v8a Qt'
+        uses: jurplel/install-qt-action@v4.3.1
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: 'all_os'
+          target: 'android'
+          arch: 'android_arm64_v8a'
+          modules: ${{ env.QT_MODULES }}
+          dir: ${{ runner.temp }}
+          py7zrversion: '==0.22.*'
+          extra: '--base ${{ env.QT_MIRROR }}'
+
+      - name: 'Generate Debug Keystore'
+        shell: bash
+        run: |
+          keytool -genkeypair -v -keystore android.keystore \
+            -alias amnezia-debug -keyalg RSA -keysize 2048 \
+            -validity 10000 -storepass amnezia123 -keypass amnezia123 \
+            -dname "CN=Amnezia, OU=Dev, O=Amnezia, L=City, S=State, C=US"
+
+      - name: 'Build project'
+        env:
+          QT_INSTALL_DIR: ${{ runner.temp }}
+          QT_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android.keystore
+          QT_ANDROID_KEYSTORE_ALIAS: 'amnezia-debug'
+          QT_ANDROID_KEYSTORE_STORE_PASS: 'amnezia123'
+        shell: bash
+        run: |
+          chmod +x deploy/build.sh
+          deploy/build.sh -t android --sign --abi arm64-v8a --build ./deploy/build/arm64-v8a
+
+      - name: 'Upload APK'
+        uses: actions/upload-artifact@v4
+        with:
+          name: AmneziaVPN-arm64-v8a
+          path: deploy/build/**/*.apk
+          if-no-files-found: error

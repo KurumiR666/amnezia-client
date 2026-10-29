@@ -7,6 +7,7 @@
 
 #include "apiCountryModel.h"
 #include "core/utils/api/apiUtils.h"
+#include "core/utils/networkHealthChecker.h"
 #include "logger.h"
 
 namespace
@@ -109,6 +110,20 @@ ApiCountryListModel::ApiCountryListModel(ApiCountryModel *source, const QString 
         });
     }
 
+    connect(NetworkHealthChecker::instance(), &NetworkHealthChecker::pingUpdated, this,
+            [this](const QString &countryCode, int pingMs, NetworkHealthChecker::Status status) {
+        Q_UNUSED(pingMs)
+        Q_UNUSED(status)
+        for (int i = 0; i < m_rows.size(); ++i) {
+            const Row &row = m_rows.at(i);
+            if (!row.isSectionHeader && row.locationIndex >= 0 && row.locationIndex < m_locations.size()) {
+                if (m_locations.at(row.locationIndex).countryCode == countryCode) {
+                    emit dataChanged(index(i), index(i), { PingMsRole, PingStatusRole });
+                }
+            }
+        }
+    });
+
     reloadLocations();
     rebuildUseCases();
     rebuild();
@@ -149,6 +164,10 @@ QVariant ApiCountryListModel::data(const QModelIndex &index, int role) const
         case IsWorkerExpiredRole:
         case IsFavoriteRole:
             return false;
+        case PingMsRole:
+            return -1;
+        case PingStatusRole:
+            return 0;
         default:
             return {};
         }
@@ -184,6 +203,10 @@ QVariant ApiCountryListModel::data(const QModelIndex &index, int role) const
     }
     case IsFavoriteRole:
         return m_favorites.contains(location.countryCode);
+    case PingMsRole:
+        return NetworkHealthChecker::instance()->getPing(location.countryCode);
+    case PingStatusRole:
+        return static_cast<int>(NetworkHealthChecker::instance()->getStatus(location.countryCode));
     default:
         return {};
     }
@@ -203,6 +226,8 @@ QHash<int, QByteArray> ApiCountryListModel::roleNames() const
     roles[IsIssuedRole] = "isIssued";
     roles[IsWorkerExpiredRole] = "isWorkerExpired";
     roles[IsFavoriteRole] = "isFavorite";
+    roles[PingMsRole] = "pingMs";
+    roles[PingStatusRole] = "pingStatus";
     return roles;
 }
 
@@ -732,6 +757,18 @@ int ApiCountryListModel::rowForSectionHeader(const QString &sectionKey) const
         }
     }
     return -1;
+}
+
+void ApiCountryListModel::checkPing(const QString &countryCode)
+{
+    NetworkHealthChecker::instance()->checkPing(countryCode);
+}
+
+void ApiCountryListModel::checkAllPings()
+{
+    for (const Location &loc : m_locations) {
+        NetworkHealthChecker::instance()->checkPing(loc.countryCode);
+    }
 }
 
 int ApiCountryListModel::rowForCountryCode(const QString &countryCode) const
