@@ -1466,7 +1466,9 @@ XrayProtocolConfig XrayProtocolConfig::fromJson(const QJsonObject &json)
                     inbound[protocols::xray::port] = QString::fromLatin1(protocols::xray::defaultLocalProxyPort).toInt();
                     inbound[protocols::xray::protocol] = QString::fromLatin1(protocols::xray::protocolSocks);
                     inbound[protocols::xray::settings] = QJsonObject { { protocols::xray::udp, true } };
-                    parsed[protocols::xray::inbounds] = QJsonArray { inbound };
+                    QJsonArray inboundsArray;
+                    inboundsArray.append(inbound);
+                    parsed[protocols::xray::inbounds] = inboundsArray;
                     lastConfigStr = QString::fromUtf8(QJsonDocument(parsed).toJson(QJsonDocument::Compact));
                 }
                 XrayClientConfig clientCfg;

@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QMap>
+#include <QHash>
 #include <QString>
 #include <QTcpSocket>
 #include <QElapsedTimer>

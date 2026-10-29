@@ -121,17 +121,9 @@ class Xray : Protocol() {
                 if (it.isNotBlank()) setMtu(it.toInt())
             }
 
-            var inbounds = xrayJsonConfig.optJSONArray("inbounds")
-            if (inbounds == null) {
-                ensureInboundAuth(xrayJsonConfig)
-                inbounds = xrayJsonConfig.optJSONArray("inbounds")
-            }
-            var socksIdx = if (inbounds != null) findSocksInboundIndex(inbounds) else -1
-            if (socksIdx < 0) {
-                ensureInboundAuth(xrayJsonConfig)
-                inbounds = xrayJsonConfig.getJSONArray("inbounds")
-                socksIdx = findSocksInboundIndex(inbounds)
-            }
+            ensureInboundAuth(xrayJsonConfig)
+            val inbounds = xrayJsonConfig.getJSONArray("inbounds")
+            val socksIdx = findSocksInboundIndex(inbounds)
             if (socksIdx < 0) {
                 throw BadConfigException("socks inbound not found")
             }
@@ -227,10 +219,8 @@ class Xray : Protocol() {
     // Ensures SOCKS5 auth is present on the socks inbound settings.
     // Re-uses existing credentials if already configured; otherwise generates random ones.
     private fun ensureInboundAuth(xrayConfig: JSONObject) {
-        var inbounds = xrayConfig.optJSONArray("inbounds")
-        if (inbounds == null) {
-            inbounds = JSONArray()
-            xrayConfig.put("inbounds", inbounds)
+        val inbounds = xrayConfig.optJSONArray("inbounds") ?: JSONArray().also {
+            xrayConfig.put("inbounds", it)
         }
         var socksIdx = findSocksInboundIndex(inbounds)
         if (socksIdx < 0) {

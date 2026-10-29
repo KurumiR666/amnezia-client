@@ -3,6 +3,7 @@
 #include <QSettings>
 #include <QDateTime>
 #include <QDebug>
+#include <QHash>
 
 NetworkHealthChecker *NetworkHealthChecker::s_instance = nullptr;
 
@@ -258,7 +259,7 @@ void NetworkHealthChecker::onSocketError(QAbstractSocket::SocketError socketErro
 
     if (socketError == QAbstractSocket::ConnectionRefusedError) {
         // TCP RST received: the host is active and responded!
-        int elapsed = static_cast<int>(task->stopwatch.elapsed());
+        int elapsed = static_cast<int>(task->timer.elapsed());
         HealthInfo info;
         info.pingMs = (elapsed > 0) ? elapsed : 1;
         info.status = Status::Online;

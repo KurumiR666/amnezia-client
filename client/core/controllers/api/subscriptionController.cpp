@@ -3,6 +3,7 @@
 #include <QDebug>
 #include <QDateTime>
 #include <QFutureWatcher>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPromise>
@@ -185,7 +186,9 @@ ErrorCode SubscriptionController::extractServerConfigJsonFromResponse(const QByt
                     inbound[protocols::xray::port] = QString::fromLatin1(protocols::xray::defaultLocalProxyPort).toInt();
                     inbound[protocols::xray::protocol] = QString::fromLatin1(protocols::xray::protocolSocks);
                     inbound[protocols::xray::settings] = QJsonObject { { protocols::xray::udp, true } };
-                    lastConfigObj[protocols::xray::inbounds] = QJsonArray { inbound };
+                    QJsonArray inboundsArray;
+                    inboundsArray.append(inbound);
+                    lastConfigObj[protocols::xray::inbounds] = inboundsArray;
                     serverProtocolConfig[configKey::lastConfig] = QString::fromUtf8(QJsonDocument(lastConfigObj).toJson(QJsonDocument::Compact));
                     container[containerName] = serverProtocolConfig;
                     containers.replace(0, container);
